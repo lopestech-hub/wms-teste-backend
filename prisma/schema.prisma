@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_VPS_URL")
+}
+
+model Produto {
+  cod_produto           String  @id @db.VarChar(20)
+  flg_ativo             String? @db.VarChar(5)
+  cod_barras            String? @db.VarChar(50)
+  referencia_fabricante String? @db.VarChar(50)
+  descricao             String? @db.VarChar(200)
+  unidade_saida         String? @db.VarChar(10)
+
+  etiquetas ProdutoEtiqueta[]
+
+  @@map("produto")
+}
+
+model Endereco {
+  cod_endereco      Int     @id
+  rua               Int?
+  predio            Int?
+  nivel             Int?
+  apto              Int?
+  endereco_completo String? @db.VarChar(40)
+
+  etiquetas ProdutoEtiqueta[]
+
+  @@map("endereco")
+}
+
+model Usuario {
+  id_usuario  String   @id @default(uuid()) @db.Uuid
+  cod_usuario Int      @default(autoincrement())
+  nome        String   @db.VarChar(100)
+  login       String   @unique @db.VarChar(50)
+  senha_hash  String   @db.VarChar(255)
+  flg_ativo   Boolean  @default(true)
+  dat_criacao DateTime @default(now())
+
+  etiquetas ProdutoEtiqueta[]
+
+  @@map("usuario")
+}
+
+model ProdutoEtiqueta {
+  id_etiqueta    String   @id @default(uuid()) @db.Uuid
+  cod_etiqueta   Int      @default(autoincrement())
+  cod_produto    String   @db.VarChar(20)
+  cod_barras     String   @db.VarChar(50)
+  cod_endereco   Int
+  qtd_inventario Decimal  @db.Decimal(10, 3)
+  id_usuario     String   @db.Uuid
+  dat_cadastro   DateTime @default(now())
+
+  produto  Produto  @relation(fields: [cod_produto], references: [cod_produto])
+  endereco Endereco @relation(fields: [cod_endereco], references: [cod_endereco])
+  usuario  Usuario  @relation(fields: [id_usuario], references: [id_usuario])
+
+  @@map("produto_etiqueta")
+}
