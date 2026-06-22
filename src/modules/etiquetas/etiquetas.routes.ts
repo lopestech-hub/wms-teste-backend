@@ -3,7 +3,26 @@ import { z } from 'zod'
 import { prisma } from '../../lib/prisma'
 
 export async function etiquetasRoutes(app: FastifyInstance) {
-  // Cadastrar etiqueta (barcode + endereco + quantidade)
+  // Quantidade ja inventariada de um produto em um endereco (para pre-preencher o campo)
+  app.get('/etiquetas/quantidade', { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { cod_produto, cod_endereco } = z
+      .object({ cod_produto: z.string().min(1), cod_endereco: z.coerce.number().int() })
+      .parse(req.query)
+
+    const etiqueta = await prisma.produtoEtiqueta.findUnique({
+      where: { cod_produto_cod_endereco: { cod_produto, cod_endereco } },
+      select: { qtd_inventario: true },
+    })
+
+    // existe = ja ha contagem; qtd = valor atual (0 se nao existe)
+    return reply.send({
+      existe: etiqueta !== null,
+      qtd_inventario: etiqueta ? Number(etiqueta.qtd_inventario) : 0,
+    })
+  })
+
+  // Cadastrar/atualizar etiqueta: uma linha por produto+endereco (upsert).
+  // A quantidade enviada e o TOTAL real do produto naquele endereco (substitui).
   app.post('/etiquetas', { onRequest: [app.authenticate] }, async (req, reply) => {
     const schema = z.object({
       cod_produto: z.string().min(1),
@@ -27,8 +46,11 @@ export async function etiquetasRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: 'Endereço não encontrado' })
     }
 
-    const etiqueta = await prisma.produtoEtiqueta.create({
-      data: { cod_produto, cod_barras, cod_endereco, qtd_inventario, id_usuario },
+    // upsert: se ja existe contagem do produto neste endereco, atualiza; senao cria
+    const etiqueta = await prisma.produtoEtiqueta.upsert({
+      where: { cod_produto_cod_endereco: { cod_produto, cod_endereco } },
+      update: { cod_barras, qtd_inventario, id_usuario, dat_cadastro: new Date() },
+      create: { cod_produto, cod_barras, cod_endereco, qtd_inventario, id_usuario },
       include: {
         produto: { select: { descricao: true, referencia_fabricante: true } },
         endereco: { select: { endereco_completo: true } },

@@ -64,5 +64,7 @@ model ProdutoEtiqueta {
   endereco Endereco @relation(fields: [cod_endereco], references: [cod_endereco])
   usuario  Usuario  @relation(fields: [id_usuario], references: [id_usuario])
 
+  // inventario: uma linha por produto em cada endereco (contagem consolidada)
+  @@unique([cod_produto, cod_endereco])
   @@map("produto_etiqueta")
 }
