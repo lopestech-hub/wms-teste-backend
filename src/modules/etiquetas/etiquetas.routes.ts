@@ -29,9 +29,11 @@ export async function etiquetasRoutes(app: FastifyInstance) {
       cod_barras: z.string().min(1),
       cod_endereco: z.number().int(),
       qtd_inventario: z.number().positive(),
+      flg_divergencia: z.boolean().optional().default(false),
     })
 
-    const { cod_produto, cod_barras, cod_endereco, qtd_inventario } = schema.parse(req.body)
+    const { cod_produto, cod_barras, cod_endereco, qtd_inventario, flg_divergencia } =
+      schema.parse(req.body)
     const id_usuario = (req.user as { sub: string }).sub
 
     // valida se produto existe
@@ -49,8 +51,8 @@ export async function etiquetasRoutes(app: FastifyInstance) {
     // upsert: se ja existe contagem do produto neste endereco, atualiza; senao cria
     const etiqueta = await prisma.produtoEtiqueta.upsert({
       where: { cod_produto_cod_endereco: { cod_produto, cod_endereco } },
-      update: { cod_barras, qtd_inventario, id_usuario, dat_cadastro: new Date() },
-      create: { cod_produto, cod_barras, cod_endereco, qtd_inventario, id_usuario },
+      update: { cod_barras, qtd_inventario, flg_divergencia, id_usuario, dat_cadastro: new Date() },
+      create: { cod_produto, cod_barras, cod_endereco, qtd_inventario, flg_divergencia, id_usuario },
       include: {
         produto: { select: { descricao: true, referencia_fabricante: true } },
         endereco: { select: { endereco_completo: true } },
