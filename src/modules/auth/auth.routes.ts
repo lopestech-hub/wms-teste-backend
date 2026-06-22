@@ -17,16 +17,25 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.send({ token, usuario })
   })
 
-  // rota interna para criar o primeiro usuario admin
-  app.post('/auth/criar-usuario', async (req, reply) => {
+  // criar usuario - exige estar autenticado (admin logado)
+  app.post('/auth/criar-usuario', { onRequest: [app.authenticate] }, async (req, reply) => {
     const schema = z.object({
       nome: z.string().min(1),
       login: z.string().min(1),
-      senha: z.string().min(6),
+      senha: z.string().min(1),
     })
 
     const { nome, login, senha } = schema.parse(req.body)
-    const usuario = await criarUsuario(nome, login, senha)
-    return reply.status(201).send(usuario)
+
+    try {
+      const usuario = await criarUsuario(nome, login, senha)
+      return reply.status(201).send(usuario)
+    } catch (err: any) {
+      // P2002 = violacao de unique (login ja existe)
+      if (err?.code === 'P2002') {
+        return reply.status(409).send({ error: 'Este login já está em uso' })
+      }
+      throw err
+    }
   })
 }

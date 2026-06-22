@@ -5,6 +5,7 @@ import { authRoutes } from './modules/auth/auth.routes'
 import { produtosRoutes } from './modules/produtos/produtos.routes'
 import { enderecosRoutes } from './modules/enderecos/enderecos.routes'
 import { etiquetasRoutes } from './modules/etiquetas/etiquetas.routes'
+import { usuariosRoutes } from './modules/usuarios/usuarios.routes'
 
 const app = Fastify({ logger: true })
 
@@ -26,6 +27,7 @@ app.register(authRoutes)
 app.register(produtosRoutes)
 app.register(enderecosRoutes)
 app.register(etiquetasRoutes)
+app.register(usuariosRoutes)
 
 // health check
 app.get('/', async () => ({ status: 'ok' }))
