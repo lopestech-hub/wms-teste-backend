@@ -42,8 +42,9 @@ async function sincronizarProdutos(origem: Client) {
 }
 
 async function sincronizarEnderecos(origem: Client) {
-  console.log('Sincronizando enderecos...')
+  console.log('Sincronizando enderecos (fonte: wms_enderecos)...')
 
+  // a tabela wms_enderecos so tem cod_filial='00' (cadastro completo de enderecos)
   const { rows } = await origem.query<{
     cod_endereco: number
     rua: number | null
@@ -51,36 +52,65 @@ async function sincronizarEnderecos(origem: Client) {
     nivel: number | null
     apto: number | null
     endereco_completo: string | null
+    descricao: string | null
+    flg_bloqueado: boolean | null
+    situacao: number | null
   }>(`
-    SELECT DISTINCT cod_endereco, rua, predio, nivel, apto, endereco_completo
-    FROM estoque_wms_endereco
+    SELECT cod_endereco, rua, predio, nivel, apto, endereco_completo,
+           descricao, flg_bloqueado, situacao
+    FROM wms_enderecos
     WHERE cod_filial = '00'
   `)
 
   console.log(`  ${rows.length} enderecos encontrados`)
 
-  await prisma.endereco.deleteMany()
+  // enderecos referenciados por etiquetas NAO podem ser deletados (FK)
+  const refs = await prisma.produtoEtiqueta.findMany({
+    distinct: ['cod_endereco'],
+    select: { cod_endereco: true },
+  })
+  const referenciados = refs.map((r) => r.cod_endereco)
+  console.log(`  ${referenciados.length} endereco(s) referenciado(s) por etiquetas (preservados)`)
 
+  // "dropa o antigo" - apaga todos exceto os referenciados
+  const del = await prisma.endereco.deleteMany({
+    where: referenciados.length ? { cod_endereco: { notIn: referenciados } } : {},
+  })
+  console.log(`  ${del.count} enderecos antigos removidos`)
+
+  // insere os novos em lote (skipDuplicates pula os referenciados que ficaram)
   const LOTE = 2000
   let inseridos = 0
   for (let i = 0; i < rows.length; i += LOTE) {
     const lote = rows.slice(i, i + LOTE)
     const res = await prisma.endereco.createMany({ data: lote, skipDuplicates: true })
     inseridos += res.count
-    console.log(`  ${Math.min(i + LOTE, rows.length)}/${rows.length}`)
+    if (i % (LOTE * 20) === 0) console.log(`  ${Math.min(i + LOTE, rows.length)}/${rows.length}`)
   }
-
   console.log(`  ${inseridos} enderecos inseridos.`)
+
+  // atualiza os referenciados com os dados novos (sao poucos)
+  let atualizados = 0
+  for (const cod of referenciados) {
+    const novo = rows.find((r) => r.cod_endereco === cod)
+    if (novo) {
+      await prisma.endereco.update({ where: { cod_endereco: cod }, data: novo })
+      atualizados++
+    }
+  }
+  if (atualizados) console.log(`  ${atualizados} endereco(s) referenciado(s) atualizado(s)`)
 }
 
 async function main() {
+  // alvo opcional: "produtos" | "enderecos" (default: ambos)
+  const alvo = process.argv[2]
   console.log('=== Sincronizacao WMS Inventario ===\n')
 
   const origem = await conectarOrigem()
 
   try {
-    await sincronizarProdutos(origem)
-    await sincronizarEnderecos(origem)
+    if (!alvo || alvo === 'produtos') await sincronizarProdutos(origem)
+    if (!alvo || alvo === 'enderecos') await sincronizarEnderecos(origem)
     console.log('\n✅ Sincronizacao concluida com sucesso.')
   } finally {
     await origem.end()

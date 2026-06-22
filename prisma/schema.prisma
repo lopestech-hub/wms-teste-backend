@@ -26,7 +26,10 @@ model Endereco {
   predio            Int?
   nivel             Int?
   apto              Int?
-  endereco_completo String? @db.VarChar(40)
+  endereco_completo String?  @db.VarChar(40)
+  descricao         String?  @db.VarChar(50)
+  flg_bloqueado     Boolean?
+  situacao          Int?
 
   etiquetas ProdutoEtiqueta[]
 
