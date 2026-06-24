@@ -56,10 +56,12 @@ model ProdutoEtiqueta {
   cod_produto    String   @db.VarChar(20)
   cod_barras     String   @db.VarChar(50)
   cod_endereco    Int
-  qtd_inventario  Decimal  @db.Decimal(10, 3)
-  flg_divergencia Boolean  @default(false)
-  id_usuario      String   @db.Uuid
-  dat_cadastro    DateTime @default(now())
+  qtd_inventario   Decimal  @db.Decimal(10, 3)
+  flg_divergencia  Boolean  @default(false)
+  etiqueta_wms_erp Boolean  @default(false)
+  inventario       Boolean  @default(false)
+  id_usuario       String   @db.Uuid
+  dat_cadastro     DateTime @default(now())
 
   produto  Produto  @relation(fields: [cod_produto], references: [cod_produto])
   endereco Endereco @relation(fields: [cod_endereco], references: [cod_endereco])
