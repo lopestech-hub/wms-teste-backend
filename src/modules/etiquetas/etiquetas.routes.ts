@@ -77,4 +77,46 @@ export async function etiquetasRoutes(app: FastifyInstance) {
 
     return reply.send(etiquetas)
   })
+
+  // Listar todas as etiquetas (tela de conferencia)
+  app.get('/etiquetas', { onRequest: [app.authenticate] }, async (_req, reply) => {
+    const etiquetas = await prisma.produtoEtiqueta.findMany({
+      orderBy: { cod_etiqueta: 'asc' },
+      select: {
+        cod_etiqueta: true,
+        cod_produto: true,
+        cod_barras: true,
+        cod_endereco: true,
+        qtd_inventario: true,
+        flg_divergencia: true,
+        etiqueta_wms_erp: true,
+        inventario: true,
+        produto: { select: { descricao: true, referencia_fabricante: true } },
+        endereco: { select: { endereco_completo: true } },
+      },
+    })
+    return reply.send(etiquetas)
+  })
+
+  // Atualizar marcacoes de conferencia de uma etiqueta
+  app.patch('/etiquetas/:cod_etiqueta/marcacao', { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { cod_etiqueta } = z.object({ cod_etiqueta: z.coerce.number().int() }).parse(req.params)
+    const body = z
+      .object({
+        etiqueta_wms_erp: z.boolean().optional(),
+        inventario: z.boolean().optional(),
+      })
+      .parse(req.body)
+
+    const r = await prisma.produtoEtiqueta.updateMany({
+      where: { cod_etiqueta },
+      data: body,
+    })
+
+    if (r.count === 0) {
+      return reply.status(404).send({ error: 'Etiqueta não encontrada' })
+    }
+
+    return reply.send({ cod_etiqueta, ...body })
+  })
 }
